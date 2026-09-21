@@ -1,0 +1,95 @@
+package liantong
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+
+	"camel/internal/provider"
+)
+
+func (l *LiantongProvider) Download(ctx context.Context, remotePath string, localPath string) error {
+	fid := remotePath
+
+	params := map[string]interface{}{
+		"fidList":   []string{fid},
+		"clientId":  clientID,
+		"spaceType": "0",
+	}
+
+	dataRaw, err := l.dispatcher.Call("wohome", "GetDownloadUrl", params)
+	if err != nil {
+		return fmt.Errorf("GetDownloadUrl failed: %w", err)
+	}
+
+	dataArray, ok := dataRaw["data"].([]interface{})
+	if !ok {
+		if dataArray, ok = dataRaw["DATA"].([]interface{}); !ok {
+			return fmt.Errorf("GetDownloadUrl returned unexpected format")
+		}
+	}
+	if len(dataArray) == 0 {
+		return fmt.Errorf("GetDownloadUrl returned empty data")
+	}
+
+	firstItem, ok := dataArray[0].(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("invalid download URL format")
+	}
+
+	downloadURL, ok := firstItem["downloadUrl"].(string)
+	if !ok {
+		return fmt.Errorf("missing downloadUrl")
+	}
+
+	req, err := http.NewRequest("GET", downloadURL, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("accesstoken", l.accessToken)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("download failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	out, err := os.Create(localPath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	cb := provider.FromContext(ctx)
+	total := resp.ContentLength
+
+	if cb == nil {
+		if _, err := io.Copy(out, resp.Body); err != nil {
+			return fmt.Errorf("failed to write file: %w", err)
+		}
+		return nil
+	}
+
+	buf := make([]byte, 32*1024)
+	var written int64
+	for {
+		n, readErr := resp.Body.Read(buf)
+		if n > 0 {
+			if _, wErr := out.Write(buf[:n]); wErr != nil {
+				return fmt.Errorf("failed to write file: %w", wErr)
+			}
+			written += int64(n)
+			cb(written, total)
+		}
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			return fmt.Errorf("failed to write file: %w", readErr)
+		}
+	}
+
+	return nil
+}

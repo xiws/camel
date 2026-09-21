@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <title>百度网盘 · Web Demo</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <section id="login-view" class="login-layout" hidden>
+    <div class="intro">
+      <div class="brand"><span class="brand-mark" aria-hidden="true"></span><span>百度网盘 <small>WEB DEMO</small></span></div>
+      <div class="intro-copy">
+        <span class="eyebrow">YOUR FILES, SIMPLY CONNECTED</span>
+        <h1>你的文件，<br>井然有序。</h1>
+        <p>连接百度网盘，在一个轻巧的页面里，<br>浏览、整理与传输你的文件。</p>
+        <div class="cloud-art" aria-hidden="true"><div class="art-orbit"></div><div class="art-folder"></div><div class="art-file"><i></i><i></i><i></i></div><span class="art-dot"></span></div>
+      </div>
+      <div class="intro-footer"><span class="status-dot"></span> 本地运行 · 凭证不落盘</div>
+    </div>
+    <main class="login-main">
+      <div class="login-card">
+        <span class="pill">个人网盘连接</span>
+        <h2>登录你的网盘</h2>
+        <div class="login-tabs">
+          <button type="button" class="login-tab active" data-tab="qr">扫码登录</button>
+          <button type="button" class="login-tab" data-tab="password">账号密码</button>
+        </div>
+        <div id="qr-login-section">
+          <div class="qr-container">
+            <div id="qr-loading" class="qr-placeholder">正在生成二维码…</div>
+            <img id="qr-image" alt="登录二维码" class="qr-image" hidden>
+            <button id="qr-refresh" type="button" class="text-button" hidden>刷新二维码</button>
+          </div>
+          <p class="qr-hint">请使用百度网盘 App 扫描上方二维码</p>
+          <p id="qr-status" class="muted qr-status"></p>
+        </div>
+        <form id="login-form" hidden>
+          <label for="username">用户名 <span class="required">*</span></label>
+          <input id="username" name="username" type="text" autocomplete="username" spellcheck="false" required maxlength="256" placeholder="手机号 / 邮箱">
+          <label for="password">密码 <span class="required">*</span></label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required maxlength="256" placeholder="输入密码">
+          <div id="captcha-section" hidden>
+            <label for="captcha-input">验证码 <span class="required">*</span></label>
+            <div class="captcha-row">
+              <input id="captcha-input" name="captcha" type="text" autocomplete="off" maxlength="10" placeholder="输入验证码">
+              <img id="captcha-image" alt="验证码" class="captcha-image">
+            </div>
+          </div>
+          <p id="login-error" class="error-text" role="alert" hidden></p>
+          <button id="login-submit" class="button primary login-submit" type="submit">登录百度网盘 <span aria-hidden="true">→</span></button>
+        </form>
+        <div class="notice"><span class="notice-icon" aria-hidden="true">i</span><p>账号密码仅在本地服务内存中处理，不会保存到浏览器存储或本地文件。会话最多保留 8 小时，退出或重启服务后失效。</p></div>
+      </div>
+      <p class="login-footnote">基于 Android API 文档构建 · 非百度官方产品</p>
+    </main>
+  </section>
+
+  <div id="drive-view" class="drive-layout" hidden>
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark" aria-hidden="true"></span><span>百度网盘 <small>WEB DEMO</small></span></div>
+      <div class="sidebar-label">工作空间</div>
+      <button id="home-button" class="nav-item active"><span class="nav-folder" aria-hidden="true"></span>全部文件</button>
+      <div class="sidebar-hint"><span class="status-dot"></span> 已连接个人网盘<p>文件操作将同步到你的<br>百度网盘账号。</p></div>
+      <div class="quota-box"><span>存储空间</span><p id="quota-text">正在读取空间信息…</p><progress id="quota-progress" max="100" value="0" aria-label="存储空间使用率"></progress></div>
+      <div class="sidebar-bottom">LOCAL WEB DEMO <span>v1.0</span></div>
+    </aside>
+    <div class="workspace">
+      <header class="topbar"><span>个人空间 <span class="topbar-divider">/</span> 文件管理</span><div class="account"><span class="avatar" aria-hidden="true">B</span><span>已登录</span><button id="logout-button" class="text-button">退出登录</button></div></header>
+      <main class="drive-main">
+        <div class="page-heading"><div><div class="eyebrow">MY CLOUD DRIVE</div><h1>全部文件<span class="heading-dot">.</span></h1><p>重要的文件，随时触手可及。</p></div><span class="connection-badge"><span class="status-dot"></span> 安全连接</span></div>
+        <div class="toolbar">
+          <div class="toolbar-actions"><button id="upload-button" class="button primary"><span aria-hidden="true">↑</span> 上传文件</button><button id="mkdir-button" class="button secondary"><span aria-hidden="true">＋</span> 新建文件夹</button><button id="refresh-button" class="button icon-button" title="刷新列表" aria-label="刷新列表">↻</button></div>
+          <label class="search"><span aria-hidden="true">⌕</span><input id="search-input" type="search" placeholder="筛选已加载的文件" aria-label="筛选已加载的文件"></label>
+          <input id="file-input" type="file" multiple hidden>
+        </div>
+        <section id="file-panel" class="file-panel" aria-label="文件列表">
+          <div class="list-meta"><nav id="breadcrumbs" aria-label="文件路径"></nav><span id="file-count" class="muted"></span></div>
+          <div id="selection-bar" class="selection-bar" hidden><span id="selection-count"></span><div><button id="rename-button" class="text-button">重命名</button><button id="download-button" class="text-button">下载</button><button id="delete-button" class="text-button danger-text">删除</button><button id="clear-selection" class="text-button">取消选择</button></div></div>
+          <div class="table-scroll"><table><thead><tr><th class="checkbox-cell"><input id="select-all" type="checkbox" aria-label="选择所有可见文件"></th><th>文件名</th><th class="size-cell">大小</th><th class="date-cell">修改时间</th><th class="action-cell">操作</th></tr></thead><tbody id="file-list"></tbody></table></div>
+          <div id="list-state" class="list-state" role="status" hidden></div>
+          <div class="load-more-wrap"><button id="load-more" class="button secondary small" hidden>加载更多</button></div>
+          <div class="drop-hint">支持拖拽文件到此处上传 <span>·</span> 单文件最大 100 MiB <span>·</span> 同名上传按接口规则自动重命名</div>
+        </section>
+        <footer class="workspace-footer"><span>你的凭证仅在本地服务内存中保存</span><span>BAIDU NETDISK / WEB DEMO</span></footer>
+      </main>
+    </div>
+  </div>
+
+  <dialog id="action-dialog">
+    <form id="action-form">
+      <div class="dialog-heading"><h2 id="dialog-title"></h2><button id="dialog-close" type="button" class="text-button" aria-label="关闭弹窗">×</button></div>
+      <p id="dialog-description" class="muted"></p>
+      <div id="name-field"><label for="name-input">名称</label><input id="name-input" maxlength="255" autocomplete="off"></div>
+      <p id="dialog-error" class="error-text" role="alert" hidden></p>
+      <div class="dialog-actions"><button id="dialog-cancel" type="button" class="button secondary">取消</button><button id="dialog-confirm" type="submit" class="button primary">确认</button></div>
+    </form>
+  </dialog>
+  <div id="transfer" class="transfer" role="status" hidden><div><strong id="transfer-title"></strong><span id="transfer-detail" class="muted"></span></div><progress id="transfer-progress" max="100" value="0" aria-label="传输进度"></progress></div>
+  <div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>
