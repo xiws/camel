@@ -3,6 +3,7 @@ package liantong
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"camel/internal/provider"
 )
@@ -33,68 +34,40 @@ func (l *LiantongProvider) Init(ctx context.Context, creds map[string]string) er
 	return nil
 }
 
+// List 列出目录内容。dir 可以是路径（"/备份"），也可以是目录 ID（"0"，兼容旧用法）。
 func (l *LiantongProvider) List(ctx context.Context, dir string) ([]provider.FileInfo, error) {
-	parentDirID := "0"
-	if dir != "/" && dir != "" {
-		parentDirID = dir
-	}
-
-	params := map[string]interface{}{
-		"spaceType":         "0",
-		"parentDirectoryId": parentDirID,
-		"pageNum":           0,
-		"pageSize":          100,
-		"sortRule":          0,
-	}
-
-	data, err := l.dispatcher.Call("wohome", "QueryAllFiles", params)
+	dirID, err := l.resolveDirID(dir)
 	if err != nil {
 		return nil, err
 	}
 
-	filesRaw, ok := data["files"].([]interface{})
-	if !ok {
-		return nil, nil
+	entries, err := l.listDir(dirID)
+	if err != nil {
+		return nil, err
 	}
 
-	var files []provider.FileInfo
-	for _, item := range filesRaw {
-		m, ok := item.(map[string]interface{})
-		if !ok {
-			continue
-		}
-
-		name, _ := m["name"].(string)
-		id, _ := m["id"].(string)
-		fid, _ := m["fid"].(string)
-		size := int64(0)
-		if v, ok := m["size"]; ok {
-			switch t := v.(type) {
-			case float64:
-				size = int64(t)
-			case string:
-			}
-		}
-		fileType := ""
-		if v, ok := m["fileType"]; ok {
-			fileType, _ = v.(string)
-		}
-		typeVal, _ := m["type"].(float64)
-		isDir := typeVal == 0
-
-		parentDirId, _ := m["parentDirectoryId"].(string)
-
+	files := make([]provider.FileInfo, 0, len(entries))
+	for _, e := range entries {
 		files = append(files, provider.FileInfo{
-			ID:       id,
-			Fid:      fid,
-			Name:     name,
-			Path:     parentDirId + "/" + name,
-			Size:     size,
-			IsDir:    isDir,
-			FileType: fileType,
-			Extra:    m,
+			ID:       e.id,
+			Fid:      e.fid,
+			Name:     e.name,
+			Path:     displayPath(dir, e.name),
+			Size:     e.size,
+			IsDir:    e.isDir,
+			FileType: e.fileType,
 		})
 	}
 
 	return files, nil
+}
+
+func toStringValue(v interface{}) string {
+	switch t := v.(type) {
+	case string:
+		return t
+	case float64:
+		return fmt.Sprintf("%.0f", t)
+	}
+	return ""
 }

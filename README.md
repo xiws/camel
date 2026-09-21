@@ -50,7 +50,8 @@ camel/
 │           ├── upload.go       # 文件上传 (upload2C)
 │           ├── download.go     # 文件下载 (GetDownloadUrl)
 │           ├── delete.go       # 文件删除 (DeleteFile)
-│           └── fileops.go      # 文件操作桩 (mv/cp/touch/mkdir 暂未支持)
+│           ├── path.go         # 路径解析 (用户路径 -> 目录/文件 ID)
+│           └── fileops.go      # 移动/复制/建目录 (touch 明确不支持)
 ├── web-demo/                   # 百度网盘 Web 端 API 实验 (Node.js)
 ├── docs/                       # 逆向分析文档
 │   ├── baidu/                  # 百度网盘 APK 逆向 API 文档
@@ -101,29 +102,33 @@ make build
 
 # 上传文件（支持 glob 通配符）
 ./bin/camel upload baidu /备份 ./file1.txt ./file2.txt
-./bin/camel upload lt /0 ./photo.jpg
+./bin/camel upload lt /照片 ./photo.jpg          # lt 用路径，也兼容目录 ID（如 /0）
 
 # 下载文件
 ./bin/camel down baidu /文档/report.pdf -o ./report.pdf
-./bin/camel down lt /fid123 -o ./output.txt
+./bin/camel down lt /文档/report.pdf -o ./output.txt
 
-# 删除文件
+# 删除文件（lt 删除目录时会连同目录内容一并删除）
 ./bin/camel del baidu /旧文件1 /旧文件2
-./bin/camel del lt /fid1 /fid2
+./bin/camel del lt /旧文件1 /旧文件2
 
 # 移动/重命名文件
 ./bin/camel mv baidu /文档/old.txt /文档/new.txt
 ./bin/camel mv baidu /文件.txt /备份/文件.txt
+./bin/camel mv lt /文档/old.txt /文档/new.txt      # 同目录 = 改名
+./bin/camel mv lt /文档/a.txt /备份/a.txt          # 不同目录 = 移动
 
 # 复制文件
 ./bin/camel cp baidu /文档/report.pdf /备份/report.pdf
+./bin/camel cp lt /文档/report.pdf /备份/report.pdf
 
-# 创建空文件
+# 创建空文件（仅百度；联通无新建文件接口，见下文限制）
 ./bin/camel touch baidu /文档/newfile.txt
 
 # 创建目录
 ./bin/camel mkdir baidu /新建文件夹
 ./bin/camel mkdir baidu /文档/子目录
+./bin/camel mkdir lt /新建文件夹
 ```
 
 ## 架构设计
@@ -167,6 +172,22 @@ PreCreate (预创建，获取 uploadid)
   "body": { "param": "AES-CBC加密的参数JSON", "clientId": "客户端ID", "secret": true }
 }
 ```
+
+### 联通沃云盘路径语义与限制
+
+联通 provider 的 `list/upload/down/del/mv/cp/mkdir/touch` 都接受**分层路径**
+（如 `/文档/report.pdf`）：从根目录开始逐段按名字下钻解析。同时兼容直接传目录 ID
+（`0` 或 32 位 hex），带长 base64 fid 的 `down` 也仍可用。
+
+已知限制：
+
+- **`touch` 不可用**：联通没有新建文件接口，且上传接口 `upload2C` 会拒绝 0 字节文件
+  （实测四种字段组合均返回 HTTP 400），因此无法创建真正的空文件，命令会直接报错。
+- **目标已存在时拒绝执行**：`mv`/`cp` 在目标位置已有同名条目时会报错，
+  不会依赖服务端的覆盖或自动改名行为。
+- **删除目录是递归的**：`del` 删除目录会连同其中内容一起删除。
+- **深层路径开销**：路径解析是逐段列目录完成的，路径越深请求次数越多。
+- **列目录只取一页**：单层超过 200 项时仅返回第一页。
 
 ## 凭证存储
 

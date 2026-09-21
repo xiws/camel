@@ -202,3 +202,29 @@ fileType    0=全部    1=图片    2=视频    3=音频    4=文档    5=其他
 - 家庭云（`spaceType=1`）与保密空间（`spaceType=4`）分支的 `familyId` / `psToken` 传递
 - 大文件分片上传（只验证了单分片的 `totalPart=1`）
 - 秒传 / 断点续传逻辑（前端 `computeMD5Success` 会先算 MD5）
+
+## 11. Go 端实现实测（2026-09-21）
+
+用 `camel` CLI 的真实凭证对下面这些操作做了端到端实测（探针目录内完成并已清理）。
+
+| 操作 | dispatcher 操作名 | 结果与参数 |
+|---|---|---|
+| 新建目录 | `CreateDirectory` | ✅ `{isCouldRepeat:"0", spaceType:"0", parentDirectoryId, directoryName}`，返回 `DATA.id` |
+| 重命名 | `RenameFileOrDirectory` | ✅ `{spaceType:"0", type:1, fileType:"4", id, name}` |
+| 移动（文件/目录） | `MoveFile` | ✅ `{targetDirId, sourceType:"0", targetType:"0", dirList:[], fileList:[id]}`，目录放 `dirList` |
+| 复制 | `CopyFile` | ✅ 参数同移动 |
+| 删除（文件/目录） | `DeleteFile` | ✅ 删除目录会递归删除其中内容 |
+| 下载 | `GetDownloadUrl` | ✅ `fidList` 要传列表项的 `fid` |
+| 新建空文件 | —— | ❌ 无可用手段，见下 |
+
+### 必须知道的四个行为
+
+1. **复制遇同名会自动改名**：目标位置已有同名文件时，`CopyFile` 得到的是 `a(1).txt`，
+   既不报错也不覆盖。所以「复制成新名字」需要复制前后对比目录、找出新条目再改名。
+2. **上传接口拒绝 0 字节文件**：`upload2C` 对 `fileSize=0` 一律返回 HTTP 400 Bad Request，
+   实测四种字段组合（`partSize`/`totalPart` 取 0/1/1024）全部失败；
+   声明 `fileSize=1` 而实际传 0 字节则返回 HTTP 500。因此联通无法创建空文件。
+3. **`UploadFile` 这个操作名存在**：传 `fileName`/`directoryId`/`fileSize`/`fileType` 的组合
+   均返回 `1000 参数错误`，用途未确认。（判别技巧：未知操作名的响应不含 `RSP` 字段。）
+4. **删除是异步生效的**：`DeleteFile` 立刻返回 `0000`，但列表要几秒后才更新，
+   脚本里「删完立刻列一次」会看到旧结果。

@@ -23,11 +23,13 @@
 - [x] 目标接口详细分析
 - [x] dispatcher 协议确认（签名/加密/操作名）
 - [x] 登录、列表、上传、下载、重命名、删除 端到端实测通过（`wocloud_ops.py`）
+- [x] 移动/复制/新建目录 端到端实测通过（`camel` CLI，2026-09-21）
+- [x] 确认联通**无新建空文件能力**（`upload2C` 拒绝 0 字节文件）
 
 ### 待完成
 - [ ] 真实设备 Frida dump（需要绕过反调试）
 - [ ] mitmproxy 抓包对照
-- [ ] 其余 dispatcher 操作（移动/复制/分享/家庭云）参数确认
+- [ ] 其余 dispatcher 操作（分享/回收站/家庭云）参数确认
 
 ## 关键发现
 
@@ -59,8 +61,10 @@ body 为 `{param: AES-CBC(参数), clientId, secret}`。
 | 上传 | ✅ 已发现 | `/openapi/client/upload2C` |
 | 文件列表 | ✅ 已确认 | dispatcher 操作名 `QueryAllFiles` |
 | 重命名 | ✅ 已确认 | dispatcher 操作名 `RenameFileOrDirectory` |
-| 移动 | ✅ 已确认 | dispatcher 操作名 `MoveFile` |
-| 创建目录 | ✅ 已确认 | dispatcher 操作名 `CreateDirectory` |
+| 移动 | ✅ 已实测 | dispatcher 操作名 `MoveFile`（文件/目录均可） |
+| 复制 | ✅ 已实测 | dispatcher 操作名 `CopyFile`（遇同名自动改名为 `a(1).txt`） |
+| 创建目录 | ✅ 已实测 | dispatcher 操作名 `CreateDirectory`，返回新目录 `id` |
+| 创建空文件 | ❌ 不支持 | 无新建文件接口，且 `upload2C` 拒绝 0 字节文件（HTTP 400） |
 | 删除文件/目录 | ✅ 已确认 | dispatcher 操作名 `DeleteFile` |
 | 空间大小 | ✅ 已确认 | 用量在 `AppQueryUser` 返回的 `usageInfo`（allSpace/usedSpace）中 |
 | 登录（密码） | ✅ 已实测 | 图形验证码 + `PcWebLogin` → 短信 `PcLoginVerifyCode` → `access_token` |
@@ -133,4 +137,5 @@ liantong/
 1. 扩展 `wocloud_ops.py`：移动/复制/分享/建目录/回收站
 2. 大文件分片上传与秒传（MD5）逻辑
 3. 家庭云（`spaceType=1`）与保密空间（`spaceType=4`）分支验证
-4. 其余 46 个 dispatcher 操作名的参数确认（见 dispatcher-protocol.md）
+4. 其余 dispatcher 操作名的参数确认（见 dispatcher-protocol.md）
+5. `UploadFile` 操作名的用途（已知存在，参数未确认）

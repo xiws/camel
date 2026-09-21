@@ -11,7 +11,10 @@ import (
 )
 
 func (l *LiantongProvider) Download(ctx context.Context, remotePath string, localPath string) error {
-	fid := remotePath
+	fid, err := l.resolveFid(remotePath)
+	if err != nil {
+		return err
+	}
 
 	params := map[string]interface{}{
 		"fidList":   []string{fid},
@@ -19,16 +22,14 @@ func (l *LiantongProvider) Download(ctx context.Context, remotePath string, loca
 		"spaceType": "0",
 	}
 
-	dataRaw, err := l.dispatcher.Call("wohome", "GetDownloadUrl", params)
+	_, err = l.dispatcher.Call("wohome", "GetDownloadUrl", params)
 	if err != nil {
 		return fmt.Errorf("GetDownloadUrl failed: %w", err)
 	}
 
-	dataArray, ok := dataRaw["data"].([]interface{})
+	dataArray, ok := l.dispatcher.lastRawData.([]interface{})
 	if !ok {
-		if dataArray, ok = dataRaw["DATA"].([]interface{}); !ok {
-			return fmt.Errorf("GetDownloadUrl returned unexpected format")
-		}
+		return fmt.Errorf("GetDownloadUrl returned unexpected format")
 	}
 	if len(dataArray) == 0 {
 		return fmt.Errorf("GetDownloadUrl returned empty data")
@@ -92,4 +93,25 @@ func (l *LiantongProvider) Download(ctx context.Context, remotePath string, loca
 	}
 
 	return nil
+}
+
+// resolveFid 优先把参数当成云盘路径（"/目录/文件.txt"）；
+// 只有当路径解析不到东西时，才把它当成直接传入的 fid（长 base64 串）。
+func (l *LiantongProvider) resolveFid(remotePath string) (string, error) {
+	resolved, err := l.resolveEntry(remotePath)
+	if err == nil {
+		if resolved.entry.isDir {
+			return "", fmt.Errorf("cannot download a directory: %s", remotePath)
+		}
+		if resolved.entry.fid == "" {
+			return "", fmt.Errorf("no download id for: %s", remotePath)
+		}
+		return resolved.entry.fid, nil
+	}
+
+	if segments := splitSegments(remotePath); len(segments) == 1 && len(segments[0]) > 40 {
+		return segments[0], nil
+	}
+
+	return "", err
 }

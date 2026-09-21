@@ -25,6 +25,7 @@ const (
 type Dispatcher struct {
 	accessToken string
 	client      *http.Client
+	lastRawData interface{}
 }
 
 func NewDispatcher() *Dispatcher {
@@ -49,9 +50,44 @@ func (d *Dispatcher) Call(channel, operation string, params interface{}) (map[st
 		return nil, fmt.Errorf("failed to marshal params: %w", err)
 	}
 
-	encrypted, err := aesEncrypt(paramsJSON, []byte(secretKey[:16]), []byte(aesIV))
-	if err != nil {
-		return nil, fmt.Errorf("failed to encrypt params: %w", err)
+	var encrypted string
+	var respKey []byte
+	var bodyMap map[string]interface{}
+
+	if channel == "api-user" {
+		encrypted, err = aesEncrypt(paramsJSON, []byte(secretKey[:16]), []byte(aesIV))
+		if err != nil {
+			return nil, fmt.Errorf("failed to encrypt params: %w", err)
+		}
+		respKey = nil
+		bodyMap = map[string]interface{}{
+			"param":    encrypted,
+			"clientId": clientID,
+			"secret":   true,
+		}
+	} else {
+		var paramsCopy map[string]interface{}
+		if err := json.Unmarshal(paramsJSON, &paramsCopy); err != nil {
+			return nil, err
+		}
+		paramsCopy["clientId"] = clientID
+		enriched, err := json.Marshal(paramsCopy)
+		if err != nil {
+			return nil, err
+		}
+		key := secretKey
+		if d.accessToken != "" {
+			key = d.accessToken
+		}
+		respKey = []byte(key[:16])
+		encrypted, err = aesEncrypt(enriched, respKey, []byte(aesIV))
+		if err != nil {
+			return nil, fmt.Errorf("failed to encrypt params: %w", err)
+		}
+		bodyMap = map[string]interface{}{
+			"param": encrypted,
+			"key":   true,
+		}
 	}
 
 	body := map[string]interface{}{
@@ -63,11 +99,7 @@ func (d *Dispatcher) Call(channel, operation string, params interface{}) (map[st
 			"sign":    sign,
 			"version": version,
 		},
-		"body": map[string]interface{}{
-			"param":    encrypted,
-			"clientId": clientID,
-			"secret":   true,
-		},
+		"body": bodyMap,
 	}
 
 	bodyJSON, err := json.Marshal(body)
@@ -109,6 +141,20 @@ func (d *Dispatcher) Call(channel, operation string, params interface{}) (map[st
 		rspDesc, _ := rsp["RSP_DESC"].(string)
 		return nil, fmt.Errorf("dispatcher error (code=%s): %s", rspCode, rspDesc)
 	}
+
+	if respKey != nil {
+		if dataStr, ok := rsp["DATA"].(string); ok && dataStr != "" {
+			decrypted, err := aesDecrypt(dataStr, respKey, []byte(aesIV))
+			if err == nil {
+				var decryptedData interface{}
+				if err := json.Unmarshal(decrypted, &decryptedData); err == nil {
+					rsp["DATA"] = decryptedData
+				}
+			}
+		}
+	}
+
+	d.lastRawData = rsp["DATA"]
 
 	data, ok := rsp["DATA"].(map[string]interface{})
 	if !ok {
