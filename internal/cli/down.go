@@ -42,10 +42,9 @@ var downCmd = &cobra.Command{
 		bar := progress.New(fmt.Sprintf("Downloading %s", filepath.Base(remotePath)), -1)
 		ctx := provider.WithProgress(context.Background(), func(transferred, total int64) {
 			if total > 0 {
-				bar.Set(transferred)
-			} else {
-				bar.Set(transferred)
+				bar.SetTotal(total)
 			}
+			bar.Set(transferred)
 		})
 
 		if err := p.Download(ctx, remotePath, localPath); err != nil {

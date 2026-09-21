@@ -37,11 +37,13 @@ type BaiduProvider struct {
 	stoken   string
 	bdstoken string
 	client   *http.Client
+	dlClient *http.Client
 }
 
 func New() *BaiduProvider {
 	return &BaiduProvider{
-		client: &http.Client{Timeout: 120 * time.Second},
+		client:   &http.Client{Timeout: 120 * time.Second},
+		dlClient: &http.Client{Timeout: 10 * time.Minute},
 	}
 }
 

@@ -33,6 +33,12 @@ func (b *Bar) Set(current int64) {
 	b.render()
 }
 
+func (b *Bar) SetTotal(total int64) {
+	b.mu.Lock()
+	b.total = total
+	b.mu.Unlock()
+}
+
 func (b *Bar) Add(n int64) {
 	b.mu.Lock()
 	b.current += n
@@ -65,8 +71,8 @@ func (b *Bar) render() {
 	if b.total <= 0 {
 		line := fmt.Sprintf("\r%s %s %s/s",
 			b.label,
-			formatBytes(b.current),
-			formatBytes(int64(speed)),
+			FormatBytes(b.current),
+			FormatBytes(int64(speed)),
 		)
 		fmt.Print(line)
 		return
@@ -93,16 +99,16 @@ func (b *Bar) render() {
 		b.label,
 		bar,
 		formatPercent(pct),
-		formatBytes(b.current),
-		formatBytes(b.total),
-		formatBytes(int64(speed)),
+		FormatBytes(b.current),
+		FormatBytes(b.total),
+		FormatBytes(int64(speed)),
 		eta,
 	)
 
 	fmt.Print(line)
 }
 
-func formatBytes(b int64) string {
+func FormatBytes(b int64) string {
 	const (
 		KB = 1024
 		MB = KB * 1024

@@ -60,7 +60,7 @@ func (b *BaiduProvider) Download(ctx context.Context, remotePath string, localPa
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Cookie", b.cookie())
 
-	resp, err := b.client.Do(req)
+	resp, err := b.dlClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("download failed: %w", err)
 	}

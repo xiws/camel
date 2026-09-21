@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"camel/internal/credential"
+	"camel/internal/progress"
 
 	"github.com/spf13/cobra"
 )
@@ -51,7 +52,7 @@ var listCmd = &cobra.Command{
 			}
 			size := ""
 			if !f.IsDir {
-				size = fmt.Sprintf("  %d bytes", f.Size)
+				size = fmt.Sprintf("  %s", progress.FormatBytes(f.Size))
 			}
 			fmt.Printf("[%s] %s%s\n", kind, f.Name, size)
 		}
