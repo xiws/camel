@@ -14,9 +14,10 @@ type FileInfo struct {
 }
 
 type LoginParams struct {
-	Username string
-	Password string
-	BDUSS    string
+	Username    string
+	Password    string
+	BDUSS       string
+	AccessToken string
 }
 
 // ProgressCallback reports transfer progress.

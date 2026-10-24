@@ -38,6 +38,7 @@ func init() {
 	rootCmd.AddCommand(cpCmd)
 	rootCmd.AddCommand(touchCmd)
 	rootCmd.AddCommand(mkdirCmd)
+	rootCmd.AddCommand(serveCmd)
 }
 
 func getProvider(name string) (provider.Provider, error) {

@@ -89,8 +89,30 @@ make build
 # 百度网盘 - 使用用户名密码登录
 ./bin/camel login baidu -u "手机号/邮箱" -p "密码"
 
-# 联通沃云盘 - 手机号密码登录（可能触发图形验证码和短信验证）
+# 联通沃云盘 - Token 登录（推荐，跳过验证码）
+
+直接传入已有的 access_token，无需输入密码：
+
+```bash
+./bin/camel login lt --token "你的access_token"
+```
+
+### 如何获取联通沃云盘的 access_token
+
+1. 使用浏览器打开 [联通沃云盘官网](https://wocloud.10010.com/) 并登录
+2. 按 `F12` 打开开发者工具，切换到 **Network（网络）** 标签页
+3. 刷新页面或进行任意操作（如列出文件）
+4. 在请求列表中找到包含 `access_token` 的请求（通常包含 `/dispatcher` 或 `api-user` 字样）
+5. 查看该请求的 **Response（响应）** 或 **Request Headers/Cookies**，找到 `access_token` 的值并复制
+6. 将复制的 token 粘贴到上面的命令中执行即可
+
+> 注意：access_token 有过期时间，过期后需要重新获取。
+
+### 联通沃云盘 - 手机号密码登录（可能触发图形验证码和短信验证）
+
+```bash
 ./bin/camel login lt -u "手机号" -p "密码"
+```
 ```
 
 ### 文件操作

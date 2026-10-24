@@ -24,11 +24,13 @@ var loginCmd = &cobra.Command{
 		username, _ := cmd.Flags().GetString("username")
 		password, _ := cmd.Flags().GetString("password")
 		bduss, _ := cmd.Flags().GetString("bduss")
+		token, _ := cmd.Flags().GetString("token")
 
 		params := provider.LoginParams{
-			Username: username,
-			Password: password,
-			BDUSS:    bduss,
+			Username:    username,
+			Password:    password,
+			BDUSS:       bduss,
+			AccessToken: token,
 		}
 
 		creds, err := p.Login(context.Background(), params)
@@ -49,4 +51,5 @@ func init() {
 	loginCmd.Flags().StringP("username", "u", "", "Username or phone number")
 	loginCmd.Flags().StringP("password", "p", "", "Password")
 	loginCmd.Flags().String("bduss", "", "BDUSS token (Baidu only)")
+	loginCmd.Flags().String("token", "", "Access token (联通沃云盘，直接传入已有 token 跳过登录流程)")
 }

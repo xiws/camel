@@ -15,6 +15,14 @@ import (
 )
 
 func (l *LiantongProvider) Login(ctx context.Context, params provider.LoginParams) (map[string]string, error) {
+	// 如果直接提供了 access_token，跳过登录流程
+	if params.AccessToken != "" {
+		return map[string]string{
+			"access_token": params.AccessToken,
+			"phone":        "",
+		}, nil
+	}
+
 	if params.Username == "" || params.Password == "" {
 		return nil, fmt.Errorf("username (phone) and password required")
 	}
