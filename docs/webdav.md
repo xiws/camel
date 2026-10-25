@@ -38,14 +38,46 @@ The server defaults to `:8080`. Any standard WebDAV client can connect.
 
 | Method | Operation | Notes |
 |--------|-----------|-------|
-| `PROPFIND` | List directory / get properties | Supports Depth 0 and 1; infinite depth returns error |
-| `GET` | Download file | Streams file content |
-| `HEAD` | Get file metadata | Returns Content-Length and Content-Type only |
-| `PUT` | Upload file | Creates temp copy then uploads via provider API |
-| `DELETE` | Delete file or directory | Single-resource deletion |
-| `MKCOL` | Create directory | Fails if directory already exists |
-| `MOVE` | Move or rename | Requires `Destination` header |
-| `COPY` | Copy file | Requires `Destination` header; zero-byte copies unsupported |
+| `PROPFIND` | List directory / get properties | Depth `0` and `1`; `Depth: infinity` is rejected with `403` and `<D:propfind-finite-depth/>`. Supports `allprop`, `propname` and named properties. |
+| `PROPPATCH` | Set/remove dead properties | Properties are kept in memory (see limitations). |
+| `GET` | Download file | Streams file content; supports `Range` requests. |
+| `HEAD` | Get file metadata | Returns `Content-Length`/`Content-Type` without downloading. |
+| `PUT` | Upload file | Buffers the body, then uploads via the provider API. Returns `201` for a new file, `204` when overwriting. |
+| `DELETE` | Delete file or directory | Retries until the provider's listing confirms the resource is gone. |
+| `MKCOL` | Create directory | `405` if the resource exists, `409` if the parent is missing. |
+| `MOVE` | Move or rename | Requires `Destination`; `201` when created, `204` when overwriting. |
+| `COPY` | Copy file or collection | Requires `Destination`; honours `Depth` (`0`, `1`, `infinity`); `201`/`204` as for MOVE. |
+| `OPTIONS` | Capabilities | Advertises `DAV: 1, 3` and the allowed methods. |
+
+### Limitations
+
+- **Class 1 only.** `LOCK`/`UNLOCK` (WebDAV class 2) are not implemented. The
+  litmus `locks` suite is therefore skipped; clients that require locking
+  (e.g. some Microsoft Office save flows) are not supported.
+- **Dead properties are in-memory.** `PROPPATCH` values are carried across
+  `MOVE`/`COPY`/`DELETE` and honoured by `PROPFIND` while the server process is
+  running, but they are lost when it restarts.
+- **Zero-byte uploads** are rejected with `501` because the provider's upload
+  API rejects empty files.
+- The provider's listing API does not expose modification times, so
+  `getlastmodified`/`creationdate` are the time of the current request.
+
+## Testing with litmus
+
+[litmus](https://github.com/notroj/litmus) is the reference WebDAV compliance
+test suite. The repository includes a harness that builds the binary, starts a
+throw-away server and runs the suites:
+
+```bash
+# Install once (Debian/Ubuntu): apt install litmus
+./scripts/litmus.sh                          # basic copymove props http
+TESTS="basic" ./scripts/litmus.sh            # a single suite
+ADDR=127.0.0.1:9100 ./scripts/litmus.sh      # different port
+```
+
+Logs (including a per-request server log) are written to `.litmus/`. Set
+`CAMEL_WEBDAV_DEBUG=1` when running `camel serve` manually to log every
+request with its status and latency.
 
 ## Authentication
 
